@@ -1,0 +1,51 @@
+// Real Lox closure example from Crafting Interpreters
+// Demonstrates closure escaping its scope
+
+var x = "global";
+
+fun outer() {
+  var x = "outer";
+  
+  fun inner() {
+    print x;  // Captures 'x' from outer scope
+  }
+  
+  inner();
+}
+
+outer();  // Prints "outer"
+
+// --- More complex: closure that escapes ---
+
+fun makeClosure(value) {
+  fun closure() {
+    print value;  // Captures 'value' parameter
+  }
+  return closure;
+}
+
+var doughnut = makeClosure("doughnut");
+var bagel = makeClosure("bagel");
+
+doughnut();  // Prints "doughnut"
+bagel();     // Prints "bagel"
+
+// --- Even more complex: nested closures with multiple captured vars ---
+
+fun createAdder(x) {
+  fun adder(y) {
+    // Captures 'x' from outer scope
+    var result = x + y;
+    return result;
+  }
+  return adder;
+}
+
+var add5 = createAdder(5);
+var add10 = createAdder(10);
+
+print add5(3);   // 8 (5 + 3)
+print add10(3);  // 13 (10 + 3)
+print add5(7);   // 12 (5 + 7)
+
+// Each closure has its own captured 'x' value!
