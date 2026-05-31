@@ -1,0 +1,20 @@
+fun create_vector(i, j) {
+ var x = i;
+ var y = j;
+ fun vector(operation, other) {
+    if (operation == "x") {
+        return x;
+    } else if (operation == "y") {
+        return y;
+    } else if (operation == "add") {
+        return create_vector(x+other("x",nil),y+other("y",nil));
+    }
+ }
+ return vector;
+}
+
+var v1 = create_vector(1,2);
+var v2 = create_vector(3,4);
+var v3 = v1("add", v2);
+print v3("x", nil);
+print v3("y", nil);

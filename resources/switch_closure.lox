@@ -1,3 +1,6 @@
+// Complex closure: Stateful command processors with switch, generators, and multiple upvalues
+// Demonstrates: generators, switch expressions, closures capturing multiple upvalues, independent state
+
 fun makeHandler(kind) {
   return switch (kind) {
     case 0 => {
@@ -21,3 +24,100 @@ var h2 = makeHandler(99);
 h0();
 h1();
 h2();
+
+// ---- MORE COMPLEX: Stateful engine with multiple independent upvalues ----
+
+fun makeEngine(mode) {
+  var steps = 0;
+  var total = 0;
+  
+  return switch (mode) {
+    case "accumulator" => {
+      fun add(n) {
+        steps = steps + 1;
+        total = total + n;
+        return "step " + steps + ": total = " + total;
+      }
+      yield add;
+    }
+    case "multiplier" => {
+      fun multiply(n) {
+        steps = steps + 1;
+        total = total * n;
+        return "step " + steps + ": total = " + total;
+      }
+      yield multiply;
+    }
+    case "counter" => {
+      fun count() {
+        steps = steps + 1;
+        total = steps;
+        return "count: " + total;
+      }
+      yield count;
+    }
+    default => {
+      fun noop() {
+        return "unknown mode";
+      }
+      yield noop;
+    }
+  };
+}
+
+// Each engine has its own independent state (steps and total)
+var acc = makeEngine("accumulator");
+var mul = makeEngine("multiplier");
+var cnt = makeEngine("counter");
+var bad = makeEngine("unknown");
+
+print acc(10);   // "step 1: total = 10"
+print acc(20);   // "step 2: total = 30"
+print acc(5);    // "step 3: total = 35"
+
+print mul(2);    // "step 1: total = 0" (independent - starts at 0, 0*2=0)
+print mul(5);    // "step 2: total = 0" (still 0 because 0*5=0)
+
+print cnt();     // "count: 1" (independent - steps=1, total=1)
+print cnt();     // "count: 2" (steps=2, total=2)
+
+print bad();     // "unknown mode"
+
+// ---- Even more complex: Engine with initialized total ----
+
+fun makeEngineWithInit(mode, initialTotal) {
+  var steps = 0;
+  var total = initialTotal;
+  
+  return switch (mode) {
+    case "accumulator" => {
+      fun add(n) {
+        steps = steps + 1;
+        total = total + n;
+        return "step " + steps + ": total = " + total;
+      }
+      yield add;
+    }
+    case "multiplier" => {
+      fun multiply(n) {
+        steps = steps + 1;
+        total = total * n;
+        return "step " + steps + ": total = " + total;
+      }
+      yield multiply;
+    }
+    default => {
+      fun noop() {
+        return "unknown mode";
+      }
+      yield noop;
+    }
+  };
+}
+
+var acc2 = makeEngineWithInit("accumulator", 100);
+var mul2 = makeEngineWithInit("multiplier", 2);
+
+print acc2(10);  // "step 1: total = 110" (starts at 100)
+print mul2(3);   // "step 1: total = 6" (starts at 2, 2*3=6)
+print mul2(4);   // "step 2: total = 24" (6*4=24)

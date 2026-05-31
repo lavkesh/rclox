@@ -35,14 +35,9 @@ pub struct CompilerUpvalue {
 pub struct UpValueObject {
     pub location: *mut Value, // pointer into VM.stack
     pub closed: Value,
-    pub next: *mut UpValueObject,
 }
 impl UpValueObject {
     pub fn new(location: *mut Value) -> Self {
-        Self {
-            location,
-            closed: Value::Nil,
-            next: null_mut(),
-        }
+        Self { location, closed: Value::Nil }
     }
 }

@@ -12,3 +12,111 @@ fun outer() {
     middle();
 }
 outer();
+
+
+// This example will trigger OP_CLOSE_UPVALUE
+// because upvalues go out of scope in nested blocks
+
+fun outer() {
+  var x = 10;  // outer scope variable
+
+  {
+    var y = 20;  // inner scope variable
+
+    fun nested() {
+      print x;   // captures x as upvalue
+      print y;   // captures y as upvalue
+    }
+
+    // y goes out of scope HERE, but nested still needs it
+    // OP_CLOSE_UPVALUE for y should be emitted here
+
+    return nested;
+  }
+
+  // x goes out of scope HERE, but nested still needs it
+  // OP_CLOSE_UPVALUE for x should be emitted here
+}
+
+var fn = outer();
+fn();
+
+
+{
+ var a = 1;
+ fun f() { print a;}
+ var b = 2;
+ fun g() { print b;}
+ var c = 3;
+ fun h() { print c;}
+}
+
+
+// Complex closure example with OP_CLOSE_UPVALUE
+
+fun outer() {
+  var x = 10;
+
+  {
+    var y = 20;
+
+    fun nested() {
+      print x;
+      print y;
+    }
+
+    return nested;
+  }
+}
+
+var fn = outer();
+fn();
+
+// Even more complex: multiple upvalues being closed
+fun makeFunctions() {
+  var a = 1;
+
+  {
+    var b = 2;
+
+    fun f() {
+      print a;
+      print b;
+    }
+
+    {
+      var c = 3;
+
+      fun g() {
+        print a;
+        print b;
+        print c;
+      }
+
+      {
+        var d = 4;
+
+        fun h() {
+          print a;
+          print b;
+          print c;
+          print d;
+        }
+
+        // d goes out of scope - OP_CLOSE_UPVALUE
+        return h;
+      }
+
+      // c goes out of scope - OP_CLOSE_UPVALUE
+      return g;
+    }
+
+    // b goes out of scope - OP_CLOSE_UPVALUE
+    return f;
+  }
+
+  // a goes out of scope
+}
+
+var f = makeFunctions();
+f();
