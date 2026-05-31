@@ -201,15 +201,8 @@ impl Vm {
         let b = self.stack[len - 1].clone();
         let result = if a.is_number() && b.is_number() {
             Value::Number(a.as_number() + b.as_number())
-        } else if a.is_string() && b.is_string() {
-            let str_a = unsafe { a.as_string() }.to_string();
-            let str_b = unsafe { b.as_string() }.to_string();
-            let concatenated = format!("{}{}", str_a, str_b);
-            let ptr = self.allocate_string(&concatenated);
-            Value::Object(ptr)
         } else {
-            self.runtime_error("Operands must be two numbers or two strings");
-            return Err(InterpretResult::InterpretRuntimeError);
+            Value::Object(self.allocate_string(&format!("{}{}", a, b)))
         };
         self.stack.pop();
         self.stack.pop();
@@ -283,7 +276,7 @@ impl Vm {
                     let top_ptr = &mut self.stack[len - 1] as *mut Value;
                     self.close_upvalues(top_ptr);
                     self.stack.pop();
-                },
+                }
                 OpCode::OpReturn => {
                     let result = self.stack.pop().unwrap();
                     let frame = self.call_stack.pop().expect("call stack underflow");

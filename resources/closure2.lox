@@ -49,3 +49,73 @@ print add10(3);  // 13 (10 + 3)
 print add5(7);   // 12 (5 + 7)
 
 // Each closure has its own captured 'x' value!
+
+
+// Complex closure: Curried function with accumulation
+// Pure Lox - no tables, no classes, just functions and closures
+
+fun createAccumulator(initial) {
+  var total = initial;
+  var operations = 0;
+
+  fun add(amount) {
+    total = total + amount;
+    operations = operations + 1;
+    return total;
+  }
+
+  fun subtract(amount) {
+    total = total - amount;
+    operations = operations + 1;
+    return total;
+  }
+
+  fun multiply(factor) {
+    total = total * factor;
+    operations = operations + 1;
+    return total;
+  }
+
+  fun reset() {
+    total = initial;
+    operations = 0;
+    return total;
+  }
+
+  fun info() {
+    return "total: " + total + ", operations: " + operations;
+  }
+
+  // Return a function that dispatches based on operation name
+  fun accumulator(operation, amount) {
+    if (operation == "add") {
+      return add(amount);
+    } else if (operation == "subtract") {
+      return subtract(amount);
+    } else if (operation == "multiply") {
+      return multiply(amount);
+    } else if (operation == "reset") {
+      return reset();
+    } else if (operation == "info") {
+      return info();
+    }
+    return nil;
+  }
+
+  return accumulator;
+}
+
+// Create multiple independent accumulators
+var acc1 = createAccumulator(0);
+var acc2 = createAccumulator(100);
+
+print acc1("add", 10);        // 10
+print acc1("add", 20);        // 30
+print acc1("multiply", 2);    // 60
+print acc1("subtract", 5);    // 55
+print acc1("info", nil);      // "total: 55, operations: 4"
+
+print acc2("subtract", 30);   // 70 (independent state!)
+print acc2("add", 50);        // 120
+
+// Each accumulator has its own private 'total' and 'operations' captured by closures
