@@ -53,7 +53,7 @@ impl Vm {
         self.stack.push(Value::Object(function));
         unsafe {
             let closure = ClosureObject::new(function);
-            let closure_obj = self.allocate_object(ObjectType::Closure(closure));
+            let closure_obj = self.allocate_object(ObjectType::Closure(closure), &[]);
             self.stack.pop();
             self.stack.push(Value::Object(closure_obj));
             self.call(closure_obj, 0)?;
@@ -203,7 +203,7 @@ impl Vm {
         let result = if a.is_number() && b.is_number() {
             Value::Number(a.as_number() + b.as_number())
         } else {
-            Value::Object(self.allocate_string(&format!("{}{}", a, b)))
+            Value::Object(self.allocate_string(&format!("{}{}", a, b), &[]))
         };
         self.stack.pop();
         self.stack.pop();
@@ -238,7 +238,7 @@ impl Vm {
                     }
                     let function = fun_val.as_object();
                     let closure = ClosureObject::new(function);
-                    let closure_obj = self.allocate_object(ObjectType::Closure(closure));
+                    let closure_obj = self.allocate_object(ObjectType::Closure(closure), &[]);
                     self.stack.push(Value::Object(closure_obj));
 
                     let upvalue_count = (*fun_val.as_function()).upvalue_count;
@@ -317,7 +317,7 @@ impl Vm {
                     let count = self.read_byte() as usize;
                     let len = self.stack.len();
                     let values: Vec<Value> = self.stack.drain(len - count..).collect();
-                    let array = self.allocate_object(ObjectType::Array(values));
+                    let array = self.allocate_object(ObjectType::Array(values), &[]);
                     self.stack.push(Value::Object(array));
                 }
                 OpCode::OpMakeArray => {
@@ -331,7 +331,7 @@ impl Vm {
                         return Err(InterpretResult::InterpretRuntimeError);
                     }
                     let values = vec![Value::Nil; n as usize];
-                    let array = self.allocate_object(ObjectType::Array(values));
+                    let array = self.allocate_object(ObjectType::Array(values), &[]);
                     self.stack.push(Value::Object(array));
                 }
                 OpCode::OpLen => {
@@ -470,12 +470,15 @@ impl Vm {
             self.heap.mark_object(self.open_upvalues[i]);
         }
     }
-    pub fn collect_garbage(&mut self) {
+    pub fn collect_garbage(&mut self, compiler_roots: &[*mut Object]) {
         self.mark_roots();
+        for &obj in compiler_roots {
+            self.heap.mark_object(obj);
+        }
     }
-    pub fn allocate_object(&mut self, obj_type: ObjectType) -> *mut Object {
+    pub fn allocate_object(&mut self, obj_type: ObjectType, compiler_roots: &[*mut Object]) -> *mut Object {
         if self.heap.total >= COLLECTION_THRESHOLD {
-            self.collect_garbage();
+            self.collect_garbage(compiler_roots);
         }
         self.heap.allocate(obj_type)
     }
@@ -486,7 +489,7 @@ impl Vm {
                 return uv_obj;
             }
         }
-        let obj = self.allocate_object(ObjectType::UpValue(UpValueObject::new(slot)));
+        let obj = self.allocate_object(ObjectType::UpValue(UpValueObject::new(slot)), &[]);
         self.open_upvalues.push(obj);
         obj
     }
@@ -502,19 +505,19 @@ impl Vm {
             }
         });
     }
-    pub fn allocate_string(&mut self, string: &str) -> *mut Object {
+    pub fn allocate_string(&mut self, string: &str, compiler_roots: &[*mut Object]) -> *mut Object {
         if let Some(&ptr) = self.interned_strings.get(string) {
             return ptr;
         }
-        let ptr = self.allocate_object(ObjectType::String(string.to_string()));
+        let ptr = self.allocate_object(ObjectType::String(string.to_string()), compiler_roots);
         self.interned_strings.insert(string.to_string(), ptr);
         ptr
     }
-    pub fn allocate_function(&mut self, func: FunctionObject) -> *mut Object {
-        self.allocate_object(ObjectType::Function(func))
+    pub fn allocate_function(&mut self, func: FunctionObject, compiler_roots: &[*mut Object]) -> *mut Object {
+        self.allocate_object(ObjectType::Function(func), compiler_roots)
     }
     pub fn define_native(&mut self, name: &str, f: NativeFunction) {
-        let obj = self.allocate_object(ObjectType::Native(f));
+        let obj = self.allocate_object(ObjectType::Native(f), &[]);
         self.globals.insert(name.to_string(), Value::Object(obj));
     }
 }
