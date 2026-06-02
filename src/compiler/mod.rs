@@ -27,7 +27,7 @@ pub struct Compiler {
 impl Compiler {
     pub fn new(scanner: Scanner, vm: &mut Vm, function_type: FunctionType) -> Self {
         let chunk = Chunk::new();
-        let init_function = vm.allocate_function(FunctionObject::new(chunk, 0, ""), );
+        let init_function = vm.allocate_function(FunctionObject::new(chunk, 0, ""), &[]);
         Compiler {
             parser: Parser::new(scanner),
             frames: vec![FunctionCompiler::new(init_function, function_type)],
@@ -179,7 +179,8 @@ impl Compiler {
     pub(super) fn string(&mut self) {
         let lexeme = self.parser.scanner.get_lexeme(self.parser.previous_token);
         let string_value = lexeme[1..lexeme.len() - 1].to_string();
-        let obj_ptr = self.vm().allocate_string(string_value.as_str());
+        let roots: Vec<*mut Object> = self.frames.iter().map(|f| f.function).collect();
+        let obj_ptr = self.vm().allocate_string(string_value.as_str(), &roots);
         self.emit_constant(Value::Object(obj_ptr));
     }
 
@@ -467,7 +468,8 @@ impl Compiler {
 
     fn identifier_constant(&mut self) -> u8 {
         let name = self.parser.scanner.get_lexeme(self.parser.previous_token).to_string();
-        let var_name = self.vm().allocate_string(&name);
+        let roots: Vec<*mut Object> = self.frames.iter().map(|f| f.function).collect();
+        let var_name = self.vm().allocate_string(&name, &roots);
         self.chunk().write_constant(Value::Object(var_name))
     }
 
@@ -498,7 +500,8 @@ impl Compiler {
 
     fn function_statement(&mut self, function_type: FunctionType) {
         let name = self.parser.scanner.get_lexeme(self.parser.previous_token).to_string();
-        let func = self.vm().allocate_function(FunctionObject::new(Chunk::new(), 0, &name));
+        let roots: Vec<*mut Object> = self.frames.iter().map(|f| f.function).collect();
+        let func = self.vm().allocate_function(FunctionObject::new(Chunk::new(), 0, &name), &roots);
         self.frames.push(FunctionCompiler::new(func, function_type));
         self.begin_scope();
 
