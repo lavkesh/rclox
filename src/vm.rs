@@ -13,6 +13,8 @@ pub enum InterpretResult {
     InterpretRuntimeError,
 }
 
+const COLLECTION_THRESHOLD: usize = 50;
+
 pub struct Vm {
     stack: Vec<Value>,
     heap: Heap,
@@ -45,17 +47,16 @@ impl Vm {
         self.call_stack.last_mut().unwrap()
     }
     fn current_chunk(&mut self) -> &mut Chunk {
-        &mut unsafe { (&mut *self.current_frame().closure).function_mut() }.chunk
+        &mut unsafe { (&mut *self.current_frame().closure.as_mut().unwrap().as_closure_mut()).function_mut() }.chunk
     }
     pub fn interpret(&mut self, function: *mut Object) -> Result<(), InterpretResult> {
         self.stack.push(Value::Object(function));
         unsafe {
-            let func = (*function).as_function_mut();
-            let closure = ClosureObject::new(func);
+            let closure = ClosureObject::new(function);
             let closure_obj = self.allocate_object(ObjectType::Closure(closure));
             self.stack.pop();
             self.stack.push(Value::Object(closure_obj));
-            self.call((*closure_obj).as_closure_mut(), 0)?;
+            self.call(closure_obj, 0)?;
         }
         self.run()
     }
@@ -68,8 +69,8 @@ impl Vm {
             Ok(())
         }
     }
-    fn call(&mut self, closure: &mut ClosureObject, arg_count: usize) -> Result<(), InterpretResult> {
-        let function = unsafe { closure.function_mut() };
+    fn call(&mut self, closure: *mut Object, arg_count: usize) -> Result<(), InterpretResult> {
+        let function = unsafe { closure.as_mut().unwrap().as_closure_mut().function_mut() };
         self.check_arity(function.arity, arg_count, function.name.clone())?;
         let frame = CallFrame {
             closure,
@@ -221,7 +222,7 @@ impl Vm {
                     let arg_count = self.read_byte() as usize;
                     let val = self.stack[self.stack.len() - arg_count - 1].clone();
                     if val.is_closure() {
-                        self.call(unsafe { val.as_closure_mut() }, arg_count)?;
+                        self.call(unsafe { val.as_object() }, arg_count)?;
                     } else if val.is_native() {
                         self.call_native(unsafe { val.as_native_mut() }, arg_count)?;
                     } else {
@@ -235,7 +236,7 @@ impl Vm {
                         self.runtime_error("Not a function");
                         return Err(InterpretResult::InterpretRuntimeError);
                     }
-                    let function = fun_val.as_function_mut();
+                    let function = fun_val.as_object();
                     let closure = ClosureObject::new(function);
                     let closure_obj = self.allocate_object(ObjectType::Closure(closure));
                     self.stack.push(Value::Object(closure_obj));
@@ -251,7 +252,7 @@ impl Vm {
                             (*closure_obj).as_closure_mut().upvalues[i] = upvalue_obj;
                         } else {
                             let c = self.current_frame().closure;
-                            let parent_upvalues: &Vec<*mut Object> = &(*c).upvalues;
+                            let parent_upvalues: &Vec<*mut Object> = &(*c).as_closure_mut().upvalues;
                             (*closure_obj).as_closure_mut().upvalues[i] = parent_upvalues[index];
                         }
                     }
@@ -259,7 +260,7 @@ impl Vm {
                 OpCode::OpGetUpvalue => unsafe {
                     let slot = self.read_byte() as usize;
                     let c = self.current_frame().closure;
-                    let upvalues: &Vec<*mut Object> = &(*c).upvalues;
+                    let upvalues: &Vec<*mut Object> = &(*c).as_closure_mut().upvalues;
                     let upvalue = upvalues[slot].as_mut().unwrap().as_upvalue_mut();
                     let value = (*upvalue.location).clone(); // dereference the pointer
                     self.stack.push(value);
@@ -267,7 +268,7 @@ impl Vm {
                 OpCode::OpSetUpvalue => unsafe {
                     let slot = self.read_byte() as usize;
                     let c = self.current_frame().closure;
-                    let upvalues: &Vec<*mut Object> = &(*c).upvalues;
+                    let upvalues: &Vec<*mut Object> = &(*c).as_closure_mut().upvalues;
                     let val = self.peek_top();
                     *upvalues[slot].as_mut().unwrap().as_upvalue_mut().location = val;
                 },
@@ -444,7 +445,7 @@ impl Vm {
     pub fn runtime_error(&mut self, message: &str) {
         eprintln!("{}", message);
         for frame in self.call_stack.iter().rev() {
-            let func = unsafe { (&*frame.closure).function_ref() };
+            let func = unsafe { (&*frame.closure.as_mut().unwrap().as_closure_mut()).function_ref() };
             let line = func.chunk.get_line(frame.ip - 1);
             if func.name.is_empty() {
                 eprintln!("[line {}] in script", line);
@@ -458,7 +459,24 @@ impl Vm {
 
     // ── Memory ───────────────────────────────────────────────────────────────
 
+    pub fn mark_roots(&mut self) {
+        for i in 0..self.stack.len() {
+            self.heap.mark_value(self.stack[i].clone());
+        }
+        for i in 0..self.call_stack.len() {
+            self.heap.mark_object(self.call_stack[i].closure)
+        }
+        for i in 0..self.open_upvalues.len() {
+            self.heap.mark_object(self.open_upvalues[i]);
+        }
+    }
+    pub fn collect_garbage(&mut self) {
+        self.mark_roots();
+    }
     pub fn allocate_object(&mut self, obj_type: ObjectType) -> *mut Object {
+        if self.heap.total >= COLLECTION_THRESHOLD {
+            self.collect_garbage();
+        }
         self.heap.allocate(obj_type)
     }
     pub fn capture_upvalue(&mut self, slot: *mut Value) -> *mut Object {

@@ -5,7 +5,7 @@ use crate::token::{Token, TokenType};
 use crate::value::{Object, Value};
 use crate::vm::Vm;
 
-mod frame;
+pub mod frame;
 mod parser;
 mod rules;
 
@@ -27,7 +27,7 @@ pub struct Compiler {
 impl Compiler {
     pub fn new(scanner: Scanner, vm: &mut Vm, function_type: FunctionType) -> Self {
         let chunk = Chunk::new();
-        let init_function = vm.allocate_function(FunctionObject::new(chunk, 0, ""));
+        let init_function = vm.allocate_function(FunctionObject::new(chunk, 0, ""), );
         Compiler {
             parser: Parser::new(scanner),
             frames: vec![FunctionCompiler::new(init_function, function_type)],

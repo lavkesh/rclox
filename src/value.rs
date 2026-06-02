@@ -36,7 +36,7 @@ impl Display for Value {
                         }
                         write!(f, "]")
                     }
-                    ObjectType::Closure(closure) => write!(f, "<fun {}>", (&*closure.function).name),
+                    ObjectType::Closure(closure) => write!(f, "<fun {}>", (&*closure.function_ref()).name),
                     ObjectType::UpValue(_) => write!(f, "<upvalue>"),
                 }
             },
