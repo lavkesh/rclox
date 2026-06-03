@@ -311,10 +311,17 @@ impl Vm {
                 // ── Array ─────────────────────────────────────────────
                 OpCode::OpArray => {
                     let count = self.read_byte() as usize;
-                    let len = self.stack.len();
-                    let values: Vec<Value> = self.stack.drain(len - count..).collect();
-                    let array = self.allocate_object(ObjectType::Array(values), &[]);
+                    let array = self.allocate_object(ObjectType::Array(Vec::with_capacity(count)), &[]);
                     self.stack.push(Value::Object(array));
+                    let stack_base = self.stack.len() - 1 - count;
+                    let values: Vec<Value> = self.stack.drain(stack_base..self.stack.len() - 1).collect();
+                    if let Value::Object(ptr) = self.stack.last().unwrap() {
+                        unsafe {
+                            if let ObjectType::Array(ref mut arr) = (**ptr).obj_type {
+                                *arr = values;
+                            }
+                        }
+                    }
                 }
                 OpCode::OpMakeArray => {
                     let len = self.stack.pop().unwrap();

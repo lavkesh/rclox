@@ -28,11 +28,11 @@ impl Display for Value {
                     ObjectType::Native(fun) => write!(f, "<native fun {}>", fun.name),
                     ObjectType::Array(values) => {
                         write!(f, "[")?;
-                        for (i, v) in values.iter().enumerate() {
+                        for (i, val) in values.iter().enumerate() {
                             if i > 0 {
                                 write!(f, ", ")?;
                             }
-                            write!(f, "{}", v)?;
+                            write!(f, "{}", val)?;
                         }
                         write!(f, "]")
                     }

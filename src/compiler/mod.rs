@@ -378,7 +378,9 @@ impl Compiler {
         let locals_len = self.locals().len();
         let mut pop_count = 0;
         for local in self.locals().iter().rev() {
-            if local.depth <= target_depth { break; }
+            if local.depth <= target_depth {
+                break;
+            }
             pop_count += 1;
         }
         if pop_count > 0 {
@@ -401,7 +403,7 @@ impl Compiler {
             }
         }
     }
-    
+
     fn begin_scope(&mut self) {
         self.frame().scope_depth += 1;
     }
