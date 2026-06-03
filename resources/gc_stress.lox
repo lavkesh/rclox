@@ -1,0 +1,139 @@
+// GC stress test — verifies live objects survive collection across heavy churn.
+// Expected output at the end is listed per print statement.
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+fun stringChurn() {
+  var i = 0;
+  while (i < 300) {
+    var s = "churn-" + i + "-x-" + (i * 3);
+    i = i + 1;
+  }
+}
+
+fun closureChurn() {
+  var i = 0;
+  while (i < 300) {
+    var x = i;
+    var y = i * 2;
+    fun f() { return x + y; }
+    f();
+    i = i + 1;
+  }
+}
+
+fun arrayChurn() {
+  var i = 0;
+  while (i < 100) {
+    var a = [i, i + 1, i + 2, i + 3, i + 4];
+    var b = array(10);
+    b[0] = a[0];
+    i = i + 1;
+  }
+}
+
+// ── Survivor 1: two closures sharing one upvalue ──────────────────────────────
+// GC must keep the upvalue alive as long as either closure is reachable.
+
+fun makeSharedCounter(start) {
+  var n = start;
+  fun inc() { n = n + 1; return n; }
+  fun get() { return n; }
+  return [inc, get];
+}
+
+// ── Survivor 2: array of closures each capturing a distinct value ─────────────
+// GC must trace array elements → closures → upvalues.
+
+fun makeClosureArray(size) {
+  var arr = array(size);
+  var i = 0;
+  while (i < size) {
+    var captured = i * 10;
+    fun f() { return captured; }
+    arr[i] = f;
+    i = i + 1;
+  }
+  return arr;
+}
+
+// ── Survivor 3: three-level closure chain ────────────────────────────────────
+// GC must trace upvalue indirections across all three frames.
+
+fun outerFn(x) {
+  fun middleFn(y) {
+    fun innerFn() { return x + y; }
+    return innerFn;
+  }
+  return middleFn;
+}
+
+// ── Survivor 4: closure mutating a captured string ───────────────────────────
+
+fun makeStringAccumulator(prefix) {
+  var acc = prefix;
+  fun append(s) {
+    acc = acc + s;
+    return acc;
+  }
+  return append;
+}
+
+// ── Build survivors before any churn ─────────────────────────────────────────
+
+var pair    = makeSharedCounter(0);
+var inc     = pair[0];
+var get     = pair[1];
+
+var cfArr   = makeClosureArray(5);
+
+var add7    = outerFn(7);
+var add7and3 = add7(3);    // captures x=7, y=3 → should return 10
+
+var strAcc  = makeStringAccumulator("a");
+
+// Mutate survivors before churn so we verify state, not just existence
+inc(); inc(); inc();           // n = 3
+strAcc("-b");                  // acc = "a-b"
+
+// ── Churn round 1 ────────────────────────────────────────────────────────────
+
+stringChurn();
+closureChurn();
+arrayChurn();
+
+// ── More survivors created mid-churn ─────────────────────────────────────────
+
+var add20   = outerFn(20);
+var add20and6 = add20(6);      // captures x=20, y=6 → should return 26
+
+var pair2   = makeSharedCounter(100);
+var inc2    = pair2[0];
+var get2    = pair2[1];
+inc2(); inc2();                // n = 102
+
+// ── Churn round 2 ────────────────────────────────────────────────────────────
+
+stringChurn();
+closureChurn();
+arrayChurn();
+stringChurn();
+
+// ── Verify all survivors ──────────────────────────────────────────────────────
+
+print get();          // 3
+inc();
+print get();          // 4  (shared upvalue intact)
+
+print cfArr[0]();     // 0
+print cfArr[2]();     // 20
+print cfArr[4]();     // 40  (array of closures intact)
+
+print add7and3();     // 10  (3-level upvalue chain)
+print add20and6();    // 26  (created mid-churn)
+
+print strAcc("-c");   // a-b-c  (string upvalue intact)
+
+print get2();         // 102 (second shared counter)
+inc2();
+print get2();         // 103

@@ -215,7 +215,6 @@ CallFrame {
 
 ## TODO (book chapters remaining)
 
-- [x] **Garbage collection** — tri-color mark-and-sweep with `gray_stack` worklist; roots: stack, call frames, open upvalues, globals, compiler in-flight objects; threshold-based triggering with ×1.5 growth (ch. 26)
 - [ ] **Classes and instances** — `ObjClass`, `ObjInstance`, `OpGetProperty`/`OpSetProperty` with field hash map (ch. 27)
 - [ ] **Methods and `this`** — `ObjBoundMethod`, `OpInvoke` fast path, implicit `this` as slot 0 (ch. 28)
 - [ ] **Inheritance** — `<` syntax, `ObjClass::superclass`, `OpGetSuper`/`OpInvokeSuper`, `super` keyword (ch. 29)

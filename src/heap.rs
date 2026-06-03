@@ -80,9 +80,7 @@ impl Heap {
         }
     }
     pub fn mark_array(&mut self, constants: &Vec<Value>) {
-        for i in 0..constants.len() {
-            self.mark_value(constants[i].clone())
-        }
+        constants.iter().for_each(|constant| self.mark_value(constant.clone()));
     }
     pub fn mark_value(&mut self, val: Value) {
         if val.is_object() {
