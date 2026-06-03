@@ -99,7 +99,7 @@ Object
   │    ├─ Array(Vec<Value>)
   │    ├─ Closure(ClosureObject)   // runtime wrapper around Function; holds upvalue slots
   │    └─ UpValue(UpValueObject)   // open: location → stack slot; closed: location → self.closed
-  ├─ is_marked: bool            // for future mark-and-sweep GC
+  ├─ is_marked: bool            // tri-color mark-and-sweep GC
   └─ next: *mut Object          // intrusive linked list through the Heap
 ```
 
@@ -110,12 +110,25 @@ Object
 ### Heap
 
 ```
-Heap { objects: *mut Object }  // head of the intrusive linked list
+Heap {
+    objects:          *mut Object                    // head of the intrusive linked list
+    total:            usize                          // live object count (triggers GC)
+    gray_stack:       Vec<*mut Object>               // worklist for tri-color marking
+    interned_strings: HashMap<String, *mut Object>  // string intern table
+}
 ```
 
-`allocate` boxes the object, calls `Box::into_raw`, and prepends it to the list. `Drop` walks the list and reconstructs `Box::from_raw` to free each node. All heap allocation goes through `Vm` helper methods (`allocate_string`, `allocate_function`, `allocate_object`) so the VM controls the list head.
+`allocate` boxes the object, calls `Box::into_raw`, prepends it to the list, and increments `total`. `Drop` walks the list and reconstructs `Box::from_raw` to free each node. All heap allocation goes through `Vm::allocate_object`, which triggers a collection when `heap.total >= gc_threshold`.
 
-**String interning** (`Vm::interned_strings: HashMap<String, *mut Object>`): `allocate_string` checks the map before allocating. Duplicate strings get the same pointer, so `==` on string objects is a cheap pointer compare.
+**String interning**: `allocate_string` checks `heap.interned_strings` before allocating. Duplicate strings get the same pointer, so `==` on string objects is a cheap pointer compare. `remove_strings` prunes the intern table during sweep — dead strings are removed before their memory is freed.
+
+**Mark-and-sweep GC** (`Vm::collect_garbage`):
+1. **Mark roots** — stack values, call-frame closures, open upvalues, globals, and any in-flight compiler-allocated objects passed as `compiler_roots`.
+2. **Trace** — `heap.trace_references()` drains `gray_stack`, marking all objects reachable from each gray object (closure upvalues, function constants, array elements, upvalue closed-over values).
+3. **Prune intern table** — `remove_strings()` before sweep so dead string pointers are not left dangling.
+4. **Sweep** — walks the object list; unmarked objects are freed, marked objects have `is_marked` reset to false.
+
+`gc_threshold` starts at 10 and grows ×1.5 after each collection, amortising GC cost as the heap expands.
 
 ---
 
@@ -123,12 +136,12 @@ Heap { objects: *mut Object }  // head of the intrusive linked list
 
 ```
 Vm {
-    stack:            Vec<Value>               // value stack (pre-allocated 256 cap — upvalue ptrs into it must not invalidate)
-    heap:             Heap
-    interned_strings: HashMap<String, *mut Object>
-    globals:          HashMap<String, Value>
-    call_stack:       Vec<CallFrame>
-    open_upvalues:    Vec<*mut Object>         // all live UpValueObjects still pointing into the stack
+    stack:          Vec<Value>          // value stack (pre-allocated 256 cap — upvalue ptrs into it must not invalidate)
+    heap:           Heap                // owns all objects + intern table + GC state
+    globals:        HashMap<String, Value>
+    call_stack:     Vec<CallFrame>
+    open_upvalues:  Vec<*mut Object>    // all live UpValueObjects still pointing into the stack
+    gc_threshold:   usize               // collect when heap.total reaches this; grows ×1.5 each cycle
 }
 
 CallFrame {
@@ -202,7 +215,7 @@ CallFrame {
 
 ## TODO (book chapters remaining)
 
-- [ ] **Garbage collection** — tri-color mark-and-sweep; `is_marked` on `Object` already present; need GC roots (stack + globals + open upvalues) and a `gray_stack` worklist (ch. 26)
+- [x] **Garbage collection** — tri-color mark-and-sweep with `gray_stack` worklist; roots: stack, call frames, open upvalues, globals, compiler in-flight objects; threshold-based triggering with ×1.5 growth (ch. 26)
 - [ ] **Classes and instances** — `ObjClass`, `ObjInstance`, `OpGetProperty`/`OpSetProperty` with field hash map (ch. 27)
 - [ ] **Methods and `this`** — `ObjBoundMethod`, `OpInvoke` fast path, implicit `this` as slot 0 (ch. 28)
 - [ ] **Inheritance** — `<` syntax, `ObjClass::superclass`, `OpGetSuper`/`OpInvokeSuper`, `super` keyword (ch. 29)
