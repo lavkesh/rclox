@@ -13,7 +13,6 @@ pub enum InterpretResult {
     InterpretRuntimeError,
 }
 
-const COLLECTION_THRESHOLD: usize = 10;
 
 pub struct Vm {
     stack: Vec<Value>,
@@ -21,6 +20,7 @@ pub struct Vm {
     globals: HashMap<String, Value>,
     call_stack: Vec<CallFrame>,
     open_upvalues: Vec<*mut Object>,
+    gc_threshold: usize,
 }
 
 impl Vm {
@@ -33,6 +33,7 @@ impl Vm {
             globals: HashMap::new(),
             call_stack: Vec::new(),
             open_upvalues: Vec::new(),
+            gc_threshold: 10,
         };
         let native_functions = get_native_functions();
         for f in native_functions {
@@ -315,12 +316,8 @@ impl Vm {
                     self.stack.push(Value::Object(array));
                     let stack_base = self.stack.len() - 1 - count;
                     let values: Vec<Value> = self.stack.drain(stack_base..self.stack.len() - 1).collect();
-                    if let Value::Object(ptr) = self.stack.last().unwrap() {
-                        unsafe {
-                            if let ObjectType::Array(ref mut arr) = (**ptr).obj_type {
-                                *arr = values;
-                            }
-                        }
+                    unsafe {
+                        *self.stack.last().unwrap().as_array_mut() = values;
                     }
                 }
                 OpCode::OpMakeArray => {
@@ -483,7 +480,8 @@ impl Vm {
         }
     }
     pub fn allocate_object(&mut self, obj_type: ObjectType, compiler_roots: &[*mut Object]) -> *mut Object {
-        if self.heap.total >= COLLECTION_THRESHOLD {
+        if self.heap.total >= self.gc_threshold {
+            self.gc_threshold = (self.gc_threshold as f64 * 1.5) as usize;
             self.collect_garbage(compiler_roots);
         }
         self.heap.allocate(obj_type)
