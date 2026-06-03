@@ -112,13 +112,12 @@ Object
 ```
 Heap {
     objects:          *mut Object                    // head of the intrusive linked list
-    total:            usize                          // live object count (triggers GC)
     gray_stack:       Vec<*mut Object>               // worklist for tri-color marking
     interned_strings: HashMap<String, *mut Object>  // string intern table
 }
 ```
 
-`allocate` boxes the object, calls `Box::into_raw`, prepends it to the list, and increments `total`. `Drop` walks the list and reconstructs `Box::from_raw` to free each node. All heap allocation goes through `Vm::allocate_object`, which triggers a collection when `heap.total >= gc_threshold`.
+`allocate` boxes the object, calls `Box::into_raw`, and prepends it to the list. `Drop` walks the list and reconstructs `Box::from_raw` to free each node. All heap allocation goes through `Vm::allocate_object`, which checks `BYTES_ALLOCATED` against `gc_threshold` before every allocation.
 
 **String interning**: `allocate_string` checks `heap.interned_strings` before allocating. Duplicate strings get the same pointer, so `==` on string objects is a cheap pointer compare. `remove_strings` prunes the intern table during sweep — dead strings are removed before their memory is freed.
 
@@ -128,7 +127,7 @@ Heap {
 3. **Prune intern table** — `remove_strings()` before sweep so dead string pointers are not left dangling.
 4. **Sweep** — walks the object list; unmarked objects are freed, marked objects have `is_marked` reset to false.
 
-`gc_threshold` starts at 10 and grows ×1.5 after each collection, amortising GC cost as the heap expands.
+**Byte-based threshold** (`src/allocator.rs`): a custom `#[global_allocator]` wraps the system allocator and tracks every byte allocated/freed process-wide in a `BYTES_ALLOCATED: AtomicUsize`. `gc_threshold` starts at 1 MB and grows ×1.5 after each collection. Because all Rust allocations are counted — including `Vec` internals, `String` data, etc. — the threshold reflects real memory pressure rather than object headcount.
 
 ---
 
@@ -141,7 +140,7 @@ Vm {
     globals:        HashMap<String, Value>
     call_stack:     Vec<CallFrame>
     open_upvalues:  Vec<*mut Object>    // all live UpValueObjects still pointing into the stack
-    gc_threshold:   usize               // collect when heap.total reaches this; grows ×1.5 each cycle
+    gc_threshold:   usize               // collect when BYTES_ALLOCATED reaches this; starts 1 MB, grows ×1.5
 }
 
 CallFrame {

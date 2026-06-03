@@ -1,7 +1,7 @@
 use crate::closure::{ClosureObject, UpValueObject};
 use crate::function::FunctionObject;
 use crate::native::NativeFunction;
-use std::fmt::{Display, Formatter};
+use std::fmt::{Display, Error, Formatter};
 use std::ops::{Div, Mul, Sub};
 
 #[derive(Debug, Clone)]
@@ -12,7 +12,7 @@ pub enum Value {
     Object(*mut Object),
 }
 impl Display for Value {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
         match self {
             Value::Bool(b) => write!(f, "{}", b),
             Value::Number(n) => write!(f, "{}", n),

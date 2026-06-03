@@ -4,7 +4,6 @@ use std::ptr::null_mut;
 
 pub struct Heap {
     objects: *mut Object,
-    pub(crate) total: usize,
     gray_stack: Vec<*mut Object>,
     pub(crate) interned_strings: HashMap<String, *mut Object>,
 }
@@ -12,7 +11,6 @@ impl Heap {
     pub fn new() -> Self {
         Self {
             objects: null_mut(),
-            total: 0,
             gray_stack: Vec::new(),
             interned_strings: HashMap::new(),
         }
@@ -23,7 +21,6 @@ impl Heap {
             is_marked: false,
             next: self.objects,
         });
-        self.total += 1;
         let ptr = Box::into_raw(obj);
         self.objects = ptr;
         ptr
@@ -91,7 +88,6 @@ impl Heap {
         unsafe {
             drop(Box::from_raw(obj));
         }
-        self.total -= 1;
     }
 }
 impl Drop for Heap {

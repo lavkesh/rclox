@@ -1,3 +1,4 @@
+mod allocator;
 mod chunk;
 mod closure;
 mod compiler;
@@ -8,6 +9,11 @@ mod scanner;
 mod token;
 mod value;
 mod vm;
+
+use crate::allocator::TrackingAllocator;
+
+#[global_allocator]
+static ALLOCATOR: TrackingAllocator = TrackingAllocator;
 
 use crate::compiler::Compiler;
 use crate::function::FunctionType;
