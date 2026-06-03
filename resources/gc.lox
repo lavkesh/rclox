@@ -1,0 +1,79 @@
+// ---- Test 1: Closure churn ----
+// Creates and discards 200 closures with upvalues
+fun closureChurn() {
+  var i = 0;
+  while (i < 200) {
+    var x = i;
+    fun f() { return x + 1; }
+    f();
+    i = i + 1;
+  }
+}
+
+// ---- Test 2: Temp closures escaping then dying ----
+fun maker(n) {
+  var x = n;
+  fun f() {
+    x = x + 1;
+    return x;
+  }
+  return f;
+}
+
+fun escapingChurn() {
+  var i = 0;
+  while (i < 100) {
+    var throwaway = maker(i);
+    throwaway();
+    throwaway();
+    i = i + 1;
+  }
+}
+
+// ---- Test 3: String churn (forces intern table + heap cleanup) ----
+fun stringChurn() {
+  var i = 0;
+  while (i < 100) {
+    var a = "hello-" + i;
+    var b = "world-" + i;
+    var c = a + "-" + b;
+    i = i + 1;
+  }
+}
+
+// ---- Test 4: Closures capturing strings ----
+fun makeStringClosure(prefix) {
+  var label = prefix + "-closure";
+  var count = 0;
+  fun f() {
+    count = count + 1;
+    return label + "-" + count;
+  }
+  return f;
+}
+
+fun stringClosureChurn() {
+  var i = 0;
+  while (i < 50) {
+    var temp = makeStringClosure("temp-" + i);
+    temp();
+    temp();
+    i = i + 1;
+  }
+}
+
+// ---- Survivors: these must remain alive and correct ----
+var counter = maker(100);
+var labeledCounter = makeStringClosure("keep");
+
+// Run all stress
+closureChurn();
+escapingChurn();
+stringChurn();
+stringClosureChurn();
+
+// Verify survivors still work correctly
+print counter();
+print counter();
+print labeledCounter();
+print labeledCounter();

@@ -95,7 +95,7 @@ impl TryFrom<u8> for OpCode {
 
 pub struct Chunk {
     code: Vec<u8>,
-    constants: Vec<Value>,
+    pub constants: Vec<Value>,
     lines: Vec<usize>,
     constant_index: HashMap<(u8, u64), u8>,
 }

@@ -13,12 +13,11 @@ pub enum InterpretResult {
     InterpretRuntimeError,
 }
 
-const COLLECTION_THRESHOLD: usize = 50;
+const COLLECTION_THRESHOLD: usize = 10;
 
 pub struct Vm {
     stack: Vec<Value>,
     heap: Heap,
-    interned_strings: HashMap<String, *mut Object>,
     globals: HashMap<String, Value>,
     call_stack: Vec<CallFrame>,
     open_upvalues: Vec<*mut Object>,
@@ -31,7 +30,6 @@ impl Vm {
         let mut vm = Vm {
             stack: Vec::with_capacity(256),
             heap: Heap::new(),
-            interned_strings: HashMap::new(),
             globals: HashMap::new(),
             call_stack: Vec::new(),
             open_upvalues: Vec::new(),
@@ -51,13 +49,11 @@ impl Vm {
     }
     pub fn interpret(&mut self, function: *mut Object) -> Result<(), InterpretResult> {
         self.stack.push(Value::Object(function));
-        unsafe {
-            let closure = ClosureObject::new(function);
-            let closure_obj = self.allocate_object(ObjectType::Closure(closure), &[]);
-            self.stack.pop();
-            self.stack.push(Value::Object(closure_obj));
-            self.call(closure_obj, 0)?;
-        }
+        let closure = ClosureObject::new(function);
+        let closure_obj = self.allocate_object(ObjectType::Closure(closure), &[]);
+        self.stack.pop();
+        self.stack.push(Value::Object(closure_obj));
+        self.call(closure_obj, 0)?;
         self.run()
     }
 
@@ -222,7 +218,7 @@ impl Vm {
                     let arg_count = self.read_byte() as usize;
                     let val = self.stack[self.stack.len() - arg_count - 1].clone();
                     if val.is_closure() {
-                        self.call(unsafe { val.as_object() }, arg_count)?;
+                        self.call(val.as_object(), arg_count)?;
                     } else if val.is_native() {
                         self.call_native(unsafe { val.as_native_mut() }, arg_count)?;
                     } else {
@@ -460,20 +456,23 @@ impl Vm {
     // ── Memory ───────────────────────────────────────────────────────────────
 
     pub fn mark_roots(&mut self) {
-        for i in 0..self.stack.len() {
-            self.heap.mark_value(self.stack[i].clone());
-        }
-        for i in 0..self.call_stack.len() {
-            self.heap.mark_object(self.call_stack[i].closure)
-        }
-        for i in 0..self.open_upvalues.len() {
-            self.heap.mark_object(self.open_upvalues[i]);
-        }
+        self.stack.iter().for_each(|value| self.heap.mark_value(value.clone()));
+        self.call_stack.iter().for_each(|frame| self.heap.mark_object(frame.closure));
+        self.open_upvalues.iter().for_each(|value| self.heap.mark_object(*value));
+        self.globals.iter().for_each(|value| self.heap.mark_value(value.1.clone()));
     }
     pub fn collect_garbage(&mut self, compiler_roots: &[*mut Object]) {
+        let before = self.heap.total;
         self.mark_roots();
         for &obj in compiler_roots {
             self.heap.mark_object(obj);
+        }
+        self.heap.trace_references();
+        self.heap.remove_strings();
+        self.heap.sweep();
+        let after = self.heap.total;
+        if before != after {
+            println!("Collecting Garbage! Before: {}, After: {}", before, after);
         }
     }
     pub fn allocate_object(&mut self, obj_type: ObjectType, compiler_roots: &[*mut Object]) -> *mut Object {
@@ -506,11 +505,11 @@ impl Vm {
         });
     }
     pub fn allocate_string(&mut self, string: &str, compiler_roots: &[*mut Object]) -> *mut Object {
-        if let Some(&ptr) = self.interned_strings.get(string) {
+        if let Some(&ptr) = self.heap.interned_strings.get(string) {
             return ptr;
         }
         let ptr = self.allocate_object(ObjectType::String(string.to_string()), compiler_roots);
-        self.interned_strings.insert(string.to_string(), ptr);
+        self.heap.interned_strings.insert(string.to_string(), ptr);
         ptr
     }
     pub fn allocate_function(&mut self, func: FunctionObject, compiler_roots: &[*mut Object]) -> *mut Object {
