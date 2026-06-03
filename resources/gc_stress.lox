@@ -1,0 +1,202 @@
+// GC stress test — verifies live objects survive collection across heavy churn.
+// Expected output listed per print statement at bottom.
+
+// ── Churn helpers ─────────────────────────────────────────────────────────────
+
+fun stringChurn() {
+  var i = 0;
+  while (i < 2000) {
+    var s = "churn-" + i + "-x-" + (i * 3) + "-y-" + (i * 7);
+    i = i + 1;
+  }
+}
+
+fun closureChurn() {
+  var i = 0;
+  while (i < 2000) {
+    var x = i;
+    var y = i * 2;
+    fun f() { return x + y; }
+    f();
+    i = i + 1;
+  }
+}
+
+// nested arrays of strings — heaviest allocator
+fun heavyArrayChurn() {
+  var i = 0;
+  while (i < 300) {
+    var outer = array(15);
+    var j = 0;
+    while (j < 15) {
+      outer[j] = array(10);
+      var row = outer[j];
+      var k = 0;
+      while (k < 10) {
+        row[k] = "s-" + i + "-" + j + "-" + k;
+        k = k + 1;
+      }
+      j = j + 1;
+    }
+    i = i + 1;
+  }
+}
+
+// closures that each return a closure — tests GC tracing through returned fns
+fun closureOfClosureChurn() {
+  var i = 0;
+  while (i < 500) {
+    var x = i;
+    fun outer() {
+      var y = x * 2;
+      fun inner() { return x + y; }
+      return inner;
+    }
+    var f = outer();
+    f();
+    i = i + 1;
+  }
+}
+
+// ── Survivor 1: four closures sharing two upvalues (simulated stack object) ───
+// Tests array of closures all capturing the same mutable state.
+
+fun makeStack() {
+  var data = array(50);
+  var size = 0;
+  fun push(v) { data[size] = v; size = size + 1; }
+  fun pop()   { size = size - 1; return data[size]; }
+  fun peek()  { return data[size - 1]; }
+  fun depth() { return size; }
+  return [push, pop, peek, depth];
+}
+
+// ── Survivor 2: linked list of closures ───────────────────────────────────────
+// Each node = array of two closures sharing two upvalues.
+// GC must trace: global → array → closure → upvalue → next node → ...
+
+fun makeNode(val, next) {
+  fun getValue() { return val; }
+  fun getNext()  { return next; }
+  return [getValue, getNext];
+}
+
+fun makeList(n) {
+  var node = nil;
+  var i = 0;
+  while (i < n) {
+    node = makeNode(i, node);
+    i = i + 1;
+  }
+  return node;
+}
+
+fun sumList(node) {
+  var sum = 0;
+  while (!(node == nil)) {
+    sum = sum + node[0]();
+    node = node[1]();
+  }
+  return sum;
+}
+
+// ── Survivor 3: 5-level deep upvalue chain ────────────────────────────────────
+// GC must follow upvalue indirections across 5 compiler frames.
+
+fun l1(a) {
+  fun l2(b) {
+    fun l3(c) {
+      fun l4(d) {
+        fun l5(e) { return a + b + c + d + e; }
+        return l5;
+      }
+      return l4;
+    }
+    return l3;
+  }
+  return l2;
+}
+
+// ── Survivor 4: array of closures each capturing a distinct value ─────────────
+
+fun makeClosureArray(size) {
+  var arr = array(size);
+  var i = 0;
+  while (i < size) {
+    var captured = i * 10;
+    fun f() { return captured; }
+    arr[i] = f;
+    i = i + 1;
+  }
+  return arr;
+}
+
+// ── Survivor 5: two closures sharing one upvalue ──────────────────────────────
+
+fun makeSharedCounter(start) {
+  var n = start;
+  fun inc() { n = n + 1; return n; }
+  fun get() { return n; }
+  return [inc, get];
+}
+
+// ── Build all survivors before churn ─────────────────────────────────────────
+
+var stk     = makeStack();
+stk[0](10); stk[0](20); stk[0](30);   // push 10, 20, 30
+
+var list    = makeList(8);             // nodes 0..7, sum = 28
+
+var deep    = l1(1)(2)(3)(4);         // deep = l5, closure taking e
+
+var cfArr   = makeClosureArray(6);
+
+var pair    = makeSharedCounter(0);
+var inc     = pair[0];
+var get     = pair[1];
+inc(); inc(); inc();                   // n = 3
+
+// ── Churn round 1 ─────────────────────────────────────────────────────────────
+
+heavyArrayChurn();
+closureChurn();
+stringChurn();
+closureOfClosureChurn();
+
+// ── More survivors mid-churn ──────────────────────────────────────────────────
+
+var stk2    = makeStack();
+stk2[0]("a"); stk2[0]("b"); stk2[0]("c");
+
+var list2   = makeList(5);             // nodes 0..4, sum = 10
+
+// ── Churn round 2 ─────────────────────────────────────────────────────────────
+
+heavyArrayChurn();
+stringChurn();
+closureOfClosureChurn();
+heavyArrayChurn();
+
+// ── Verify all survivors ──────────────────────────────────────────────────────
+
+print stk[3]();       // 3  (depth)
+print stk[2]();       // 30 (peek)
+print stk[1]();       // 30 (pop)
+print stk[2]();       // 20 (peek after pop)
+
+print sumList(list);  // 28 (0+1+2+3+4+5+6+7)
+
+print deep(5);        // 15 (1+2+3+4+5)
+
+print cfArr[0]();     // 0
+print cfArr[3]();     // 30
+print cfArr[5]();     // 50
+
+print get();          // 3
+inc();
+print get();          // 4
+
+print stk2[1]();      // c  (pop)
+print stk2[1]();      // b  (pop)
+
+print sumList(list2); // 10 (0+1+2+3+4)

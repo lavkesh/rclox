@@ -1,3 +1,4 @@
+use crate::allocator::BYTES_ALLOCATED;
 use crate::chunk::{Chunk, OpCode};
 use crate::closure::{CallFrame, ClosureObject, UpValueObject};
 use crate::function::FunctionObject;
@@ -5,7 +6,8 @@ use crate::heap::Heap;
 use crate::native::{NativeFunction, get_native_functions};
 use crate::value::{Object, ObjectType, Value};
 use std::collections::HashMap;
-use std::fmt::Debug;
+use std::fmt::{Debug, Formatter};
+use std::sync::atomic::Ordering;
 
 pub enum InterpretResult {
     InterpretOk,
@@ -13,6 +15,20 @@ pub enum InterpretResult {
     InterpretRuntimeError,
 }
 
+fn fmt_bytes(n: usize) -> String {
+    const KB: usize = 1024;
+    const MB: usize = 1024 * KB;
+    const GB: usize = 1024 * MB;
+    if n >= GB {
+        format!("{:.2} GB", n as f64 / GB as f64)
+    } else if n >= MB {
+        format!("{:.2} MB", n as f64 / MB as f64)
+    } else if n >= KB {
+        format!("{:.2} KB", n as f64 / KB as f64)
+    } else {
+        format!("{} B", n)
+    }
+}
 
 pub struct Vm {
     stack: Vec<Value>,
@@ -33,7 +49,7 @@ impl Vm {
             globals: HashMap::new(),
             call_stack: Vec::new(),
             open_upvalues: Vec::new(),
-            gc_threshold: 10,
+            gc_threshold: 1024 * 1024,
         };
         let native_functions = get_native_functions();
         for f in native_functions {
@@ -466,7 +482,7 @@ impl Vm {
         self.globals.iter().for_each(|value| self.heap.mark_value(value.1.clone()));
     }
     pub fn collect_garbage(&mut self, compiler_roots: &[*mut Object]) {
-        let before = self.heap.total;
+        let before = BYTES_ALLOCATED.load(Ordering::Relaxed);
         self.mark_roots();
         for &obj in compiler_roots {
             self.heap.mark_object(obj);
@@ -474,13 +490,11 @@ impl Vm {
         self.heap.trace_references();
         self.heap.remove_strings();
         self.heap.sweep();
-        let after = self.heap.total;
-        if before != after {
-            println!("Collecting Garbage! Before: {}, After: {}", before, after);
-        }
+        let after = BYTES_ALLOCATED.load(Ordering::Relaxed);
+        println!("GC: {} -> {} (next at {})", fmt_bytes(before), fmt_bytes(after), fmt_bytes(self.gc_threshold));
     }
     pub fn allocate_object(&mut self, obj_type: ObjectType, compiler_roots: &[*mut Object]) -> *mut Object {
-        if self.heap.total >= self.gc_threshold {
+        if BYTES_ALLOCATED.load(Ordering::Relaxed) >= self.gc_threshold {
             self.gc_threshold = (self.gc_threshold as f64 * 1.5) as usize;
             self.collect_garbage(compiler_roots);
         }
@@ -529,7 +543,7 @@ impl Vm {
 // ── Debug ────────────────────────────────────────────────────────────────────
 
 impl Debug for Vm {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "        ")?;
         for value in self.stack.iter() {
             write!(f, "[ {:?} ]", value)?;
