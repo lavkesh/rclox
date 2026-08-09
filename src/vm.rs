@@ -269,10 +269,13 @@ impl Vm {
                     }
                     let instance = top.as_instance_mut();
                     let name = self.read_string();
-                    instance.fields.insert(name, self.peek_top());
-                    let val = self.stack.pop();
+                    instance.fields.insert(name.clone(), self.peek_top());
+                    let val = self.stack.pop().unwrap();
+                    if val == Value::Nil {
+                        instance.fields.remove(&name);
+                    }
                     self.stack.pop();
-                    self.stack.push(val.unwrap());
+                    self.stack.push(val);
                 },
                 // ── Functions ─────────────────────────────────────────────
                 OpCode::OpCall => unsafe {
