@@ -42,6 +42,7 @@ pub enum OpCode {
     OpGetUpvalue,
     OpSetUpvalue,
     OpCloseUpvalue,
+    OpClass,
 }
 
 impl TryFrom<u8> for OpCode {
@@ -86,6 +87,7 @@ impl TryFrom<u8> for OpCode {
             34 => Ok(OpCode::OpGetUpvalue),
             35 => Ok(OpCode::OpSetUpvalue),
             36 => Ok(OpCode::OpCloseUpvalue),
+            37 => Ok(OpCode::OpClass),
             _ => Err(format!("Unknown opcode: {}", byte)),
         }
     }
@@ -199,6 +201,7 @@ impl Chunk {
             OpCode::OpJump => self.jump_instruction(f, "OP_JUMP", 1, offset),
             OpCode::OpLoop => self.jump_instruction(f, "OP_LOOP", -1, offset),
             OpCode::OpClosure => self.closure_instruction(f, "OP_CLOSURE", offset),
+            OpCode::OpClass => self.constant_instruction(f, "OP_CLASS", offset),
         }
     }
 

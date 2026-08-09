@@ -1,5 +1,6 @@
 use crate::allocator::BYTES_ALLOCATED;
 use crate::chunk::{Chunk, OpCode};
+use crate::class::ClassObject;
 use crate::closure::{CallFrame, ClosureObject, UpValueObject};
 use crate::function::FunctionObject;
 use crate::heap::Heap;
@@ -230,6 +231,13 @@ impl Vm {
         loop {
             let opcode = OpCode::try_from(self.read_byte()).unwrap();
             match opcode {
+                // ── Classes ─────────────────────────────────────────────
+                OpCode::OpClass => {
+                    let name = self.read_string();
+                    let class = ClassObject { name };
+                    let class_obj = self.allocate_class(class, &[]);
+                    self.stack.push(Value::Object(class_obj));
+                }
                 // ── Functions ─────────────────────────────────────────────
                 OpCode::OpCall => {
                     let arg_count = self.read_byte() as usize;
@@ -533,6 +541,9 @@ impl Vm {
     }
     pub fn allocate_function(&mut self, func: FunctionObject, compiler_roots: &[*mut Object]) -> *mut Object {
         self.allocate_object(ObjectType::Function(func), compiler_roots)
+    }
+    pub fn allocate_class(&mut self, class: ClassObject, compiler_roots: &[*mut Object]) -> *mut Object {
+        self.allocate_object(ObjectType::Class(class), compiler_roots)
     }
     pub fn define_native(&mut self, name: &str, f: NativeFunction) {
         let obj = self.allocate_object(ObjectType::Native(f), &[]);

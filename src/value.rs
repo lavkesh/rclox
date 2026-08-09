@@ -1,3 +1,4 @@
+use crate::class::ClassObject;
 use crate::closure::{ClosureObject, UpValueObject};
 use crate::function::FunctionObject;
 use crate::native::NativeFunction;
@@ -38,6 +39,7 @@ impl Display for Value {
                     }
                     ObjectType::Closure(closure) => write!(f, "<fun {}>", (&*closure.function_ref()).name),
                     ObjectType::UpValue(_) => write!(f, "<upvalue>"),
+                    ObjectType::Class(class) => write!(f, "<class {}>", class.name),
                 }
             },
         }
@@ -67,6 +69,7 @@ pub enum ObjectType {
     Array(Vec<Value>),
     Closure(ClosureObject),
     UpValue(UpValueObject),
+    Class(ClassObject),
 }
 
 impl Value {
@@ -120,7 +123,9 @@ impl Value {
     pub fn is_native(&self) -> bool {
         self.as_object_type().map_or(false, |o| matches!(o, ObjectType::Native(_)))
     }
-
+    pub fn is_class(&self) -> bool {
+        self.as_object_type().map_or(false, |o| matches!(o, ObjectType::Class(_)))
+    }
     fn as_object_type(&self) -> Option<&ObjectType> {
         match self {
             Value::Object(ptr) if !ptr.is_null() => Some(unsafe { &(**ptr).obj_type }),
@@ -153,7 +158,9 @@ impl Value {
     pub unsafe fn as_native_mut(&self) -> &mut NativeFunction {
         unsafe { (*self.as_object()).as_native_mut() }
     }
-
+    pub unsafe fn as_class_mut(&self) -> &mut ClassObject {
+        unsafe { (*self.as_object()).as_class_mut() }
+    }
     pub fn greater_than(&self, other: &Self) -> Result<Value, &'static str> {
         match (self, other) {
             (Value::Number(a), Value::Number(b)) => Ok(Value::Bool(a > b)),
@@ -221,6 +228,13 @@ impl Object {
         match &mut self.obj_type {
             ObjectType::UpValue(c) => c,
             _ => panic!("as_upvalue_mut: not a upvalue"),
+        }
+    }
+
+    pub fn as_class_mut(&mut self) -> &mut ClassObject {
+        match &mut self.obj_type {
+            ObjectType::Class(c) => c,
+            _ => panic!("as_class_mut: not a class"),
         }
     }
 }

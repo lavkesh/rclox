@@ -700,6 +700,8 @@ impl Compiler {
     pub(super) fn declaration(&mut self) {
         if self.parser.match_token_type(TokenType::Var) {
             self.var_declaration();
+        } else if self.parser.match_token_type(TokenType::Class) {
+            self.class_declaration();
         } else if self.parser.match_token_type(TokenType::Fun) {
             self.fun_declaration();
         } else {
@@ -709,7 +711,23 @@ impl Compiler {
             self.parser.synchronize();
         }
     }
-
+    fn class_declaration(&mut self) {
+        self.consume(TokenType::Identifier, "Expect a class name.");
+        let name_token = self.parser.previous_token;
+        let name_constant = self.identifier_constant();
+        let scope_depth = self.frame().scope_depth;
+        if scope_depth > 0 {
+            self.declare_variable_late(name_token);
+        }
+        self.emit_bytes(OpCode::OpClass as u8, name_constant);
+        if scope_depth > 0 {
+            self.mark_initialized();
+        } else {
+            self.define_variable(name_constant);
+        }
+        self.consume(TokenType::LeftBrace, "Expect '{' after class.");
+        self.consume(TokenType::RightBrace, "Expect '}' after class.");
+    }
     fn fun_declaration(&mut self) {
         let name = self.parse_variable("Expect function name.");
         self.mark_initialized();

@@ -46,6 +46,7 @@ impl Heap {
                     closure.upvalues.iter().for_each(|up| self.mark_object(*up));
                 }
                 ObjectType::Array(array) => self.mark_array(array),
+                ObjectType::Class(_) => {}
             }
         }
     }
