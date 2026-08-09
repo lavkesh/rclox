@@ -38,7 +38,7 @@ impl Heap {
         while !self.gray_stack.is_empty() {
             let ob = unsafe { self.gray_stack.pop().unwrap().as_mut().unwrap() };
             match &ob.obj_type {
-                ObjectType::Native(_) | ObjectType::String(_) => {}
+                ObjectType::Native(_) | ObjectType::String(_) | ObjectType::Class(_) => {}
                 ObjectType::UpValue(upvalue) => self.mark_value(upvalue.closed.clone()),
                 ObjectType::Function(function) => self.mark_array(&function.chunk.constants),
                 ObjectType::Closure(closure) => {
@@ -46,7 +46,12 @@ impl Heap {
                     closure.upvalues.iter().for_each(|up| self.mark_object(*up));
                 }
                 ObjectType::Array(array) => self.mark_array(array),
-                ObjectType::Class(_) => {}
+                ObjectType::Instance(instance) => {
+                    self.mark_object(instance.class);
+                    instance.fields.iter().for_each(|(_, val)| {
+                        self.mark_value(val.clone());
+                    })
+                }
             }
         }
     }

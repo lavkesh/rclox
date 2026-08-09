@@ -1,6 +1,6 @@
 use crate::allocator::BYTES_ALLOCATED;
 use crate::chunk::{Chunk, OpCode};
-use crate::class::ClassObject;
+use crate::class::{ClassObject, InstanceObject};
 use crate::closure::{CallFrame, ClosureObject, UpValueObject};
 use crate::function::FunctionObject;
 use crate::heap::Heap;
@@ -112,6 +112,15 @@ impl Vm {
         }
     }
 
+    fn call_class(&mut self, class: &mut Object, arg_count: usize) -> Result<(), InterpretResult> {
+        let instance = InstanceObject { class, fields: HashMap::new() };
+        let instance_obj = self.allocate_instance(instance, &[]);
+        // TODO: we will need to save it
+        self.stack.truncate(self.stack.len() - arg_count - 1);
+        self.stack.push(Value::Object(instance_obj));
+        Ok(())
+    }
+
     // ── Bytecode reading ─────────────────────────────────────────────────────
 
     fn read_byte(&mut self) -> u8 {
@@ -141,9 +150,11 @@ impl Vm {
     // ── Stack helpers ────────────────────────────────────────────────────────
 
     fn peek_top(&self) -> Value {
-        self.stack[self.stack.len() - 1].clone()
+        self.peek_at(0)
     }
-
+    fn peek_at(&self, index: usize) -> Value {
+        self.stack[self.stack.len() - 1 - index].clone()
+    }
     // ── Array helpers ────────────────────────────────────────────────────────
     fn validate_index(&mut self, n: f64, len: usize) -> Result<usize, InterpretResult> {
         if n < 0.0 || n.fract() != 0.0 {
@@ -231,26 +242,53 @@ impl Vm {
         loop {
             let opcode = OpCode::try_from(self.read_byte()).unwrap();
             match opcode {
-                // ── Classes ─────────────────────────────────────────────
+                // ── Classes and instances ─────────────────────────────────────────────
                 OpCode::OpClass => {
                     let name = self.read_string();
                     let class = ClassObject { name };
                     let class_obj = self.allocate_class(class, &[]);
                     self.stack.push(Value::Object(class_obj));
                 }
+                OpCode::OpGetProperty => unsafe {
+                    let top = self.peek_top();
+                    if !top.is_instance() {
+                        self.runtime_error("Expected an instance");
+                        return Err(InterpretResult::InterpretRuntimeError);
+                    }
+                    let instance = top.as_instance();
+                    let name = self.read_string();
+                    let prop = instance.fields.get(&name).unwrap_or(&Value::Nil);
+                    self.stack.pop();
+                    self.stack.push(prop.clone());
+                },
+                OpCode::OpSetProperty => unsafe {
+                    let mut top = self.peek_at(1);
+                    if !top.is_instance() {
+                        self.runtime_error("Expected an instance");
+                        return Err(InterpretResult::InterpretRuntimeError);
+                    }
+                    let instance = top.as_instance_mut();
+                    let name = self.read_string();
+                    instance.fields.insert(name, self.peek_top());
+                    let val = self.stack.pop();
+                    self.stack.pop();
+                    self.stack.push(val.unwrap());
+                },
                 // ── Functions ─────────────────────────────────────────────
-                OpCode::OpCall => {
+                OpCode::OpCall => unsafe {
                     let arg_count = self.read_byte() as usize;
                     let val = self.stack[self.stack.len() - arg_count - 1].clone();
                     if val.is_closure() {
                         self.call(val.as_object(), arg_count)?;
+                    } else if val.is_class() {
+                        self.call_class(&mut *val.as_object(), arg_count)?;
                     } else if val.is_native() {
-                        self.call_native(unsafe { val.as_native_mut() }, arg_count)?;
+                        self.call_native(val.as_native_mut(), arg_count)?;
                     } else {
                         self.runtime_error("Invalid function type");
                         return Err(InterpretResult::InterpretRuntimeError);
                     }
-                }
+                },
                 OpCode::OpClosure => unsafe {
                     let fun_val = self.read_constant();
                     if !fun_val.is_function() {
@@ -544,6 +582,9 @@ impl Vm {
     }
     pub fn allocate_class(&mut self, class: ClassObject, compiler_roots: &[*mut Object]) -> *mut Object {
         self.allocate_object(ObjectType::Class(class), compiler_roots)
+    }
+    pub fn allocate_instance(&mut self, instance: InstanceObject, compiler_roots: &[*mut Object]) -> *mut Object {
+        self.allocate_object(ObjectType::Instance(instance), compiler_roots)
     }
     pub fn define_native(&mut self, name: &str, f: NativeFunction) {
         let obj = self.allocate_object(ObjectType::Native(f), &[]);

@@ -43,6 +43,8 @@ pub enum OpCode {
     OpSetUpvalue,
     OpCloseUpvalue,
     OpClass,
+    OpSetProperty,
+    OpGetProperty,
 }
 
 impl TryFrom<u8> for OpCode {
@@ -88,6 +90,8 @@ impl TryFrom<u8> for OpCode {
             35 => Ok(OpCode::OpSetUpvalue),
             36 => Ok(OpCode::OpCloseUpvalue),
             37 => Ok(OpCode::OpClass),
+            38 => Ok(OpCode::OpSetProperty),
+            39 => Ok(OpCode::OpGetProperty),
             _ => Err(format!("Unknown opcode: {}", byte)),
         }
     }
@@ -202,6 +206,8 @@ impl Chunk {
             OpCode::OpLoop => self.jump_instruction(f, "OP_LOOP", -1, offset),
             OpCode::OpClosure => self.closure_instruction(f, "OP_CLOSURE", offset),
             OpCode::OpClass => self.constant_instruction(f, "OP_CLASS", offset),
+            OpCode::OpGetProperty => self.constant_instruction(f, "OP_GET_PROPERTY", offset),
+            OpCode::OpSetProperty => self.constant_instruction(f, "OP_SET_PROPERTY", offset),
         }
     }
 

@@ -359,6 +359,16 @@ impl Compiler {
         self.emit_bytes(OpCode::OpCall as u8, arguments);
     }
 
+    pub(super) fn dot(&mut self) {
+        self.consume(TokenType::Identifier, "Expected property name after '.'.");
+        let name = self.identifier_constant();
+        if self.parser.can_assign && self.parser.match_token_type(TokenType::Equal) {
+            self.expression();
+            self.emit_bytes(OpCode::OpSetProperty as u8, name);
+        } else {
+            self.emit_bytes(OpCode::OpGetProperty as u8, name);
+        }
+    }
     // ── Scope & locals ────────────────────────────────────────────────────────
 
     fn resolve_(&mut self) -> (OpCode, OpCode, u8) {

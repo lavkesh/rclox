@@ -1,4 +1,4 @@
-use crate::class::ClassObject;
+use crate::class::{ClassObject, InstanceObject};
 use crate::closure::{ClosureObject, UpValueObject};
 use crate::function::FunctionObject;
 use crate::native::NativeFunction;
@@ -40,6 +40,7 @@ impl Display for Value {
                     ObjectType::Closure(closure) => write!(f, "<fun {}>", (&*closure.function_ref()).name),
                     ObjectType::UpValue(_) => write!(f, "<upvalue>"),
                     ObjectType::Class(class) => write!(f, "<class {}>", class.name),
+                    ObjectType::Instance(instance) => write!(f, "<instance of {}>", instance.class_ref().name),
                 }
             },
         }
@@ -70,6 +71,7 @@ pub enum ObjectType {
     Closure(ClosureObject),
     UpValue(UpValueObject),
     Class(ClassObject),
+    Instance(InstanceObject),
 }
 
 impl Value {
@@ -126,6 +128,9 @@ impl Value {
     pub fn is_class(&self) -> bool {
         self.as_object_type().map_or(false, |o| matches!(o, ObjectType::Class(_)))
     }
+    pub fn is_instance(&self) -> bool {
+        self.as_object_type().map_or(false, |o| matches!(o, ObjectType::Instance(_)))
+    }
     fn as_object_type(&self) -> Option<&ObjectType> {
         match self {
             Value::Object(ptr) if !ptr.is_null() => Some(unsafe { &(**ptr).obj_type }),
@@ -160,6 +165,12 @@ impl Value {
     }
     pub unsafe fn as_class_mut(&self) -> &mut ClassObject {
         unsafe { (*self.as_object()).as_class_mut() }
+    }
+    pub unsafe fn as_instance_mut(&mut self) -> &mut InstanceObject {
+        unsafe { (*self.as_object()).as_instance_mut() }
+    }
+    pub unsafe fn as_instance(&self) -> &InstanceObject {
+        unsafe { (*self.as_object()).as_instance() }
     }
     pub fn greater_than(&self, other: &Self) -> Result<Value, &'static str> {
         match (self, other) {
@@ -235,6 +246,25 @@ impl Object {
         match &mut self.obj_type {
             ObjectType::Class(c) => c,
             _ => panic!("as_class_mut: not a class"),
+        }
+    }
+    pub fn as_class(&self) -> &ClassObject {
+        match &self.obj_type {
+            ObjectType::Class(c) => c,
+            _ => panic!("as_class: not a class"),
+        }
+    }
+
+    pub fn as_instance_mut(&mut self) -> &mut InstanceObject {
+        match &mut self.obj_type {
+            ObjectType::Instance(c) => c,
+            _ => panic!("as_instance_mut: not a instance"),
+        }
+    }
+    pub fn as_instance(&self) -> &InstanceObject {
+        match &self.obj_type {
+            ObjectType::Instance(c) => c,
+            _ => panic!("as_instance: not a instance"),
         }
     }
 }

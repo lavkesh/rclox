@@ -1,0 +1,1368 @@
+// ============================================================
+// LOX CLASS / INSTANCE / PROPERTY / SCOPE TEST SUITE
+// ============================================================
+
+
+// ============================================================
+// 1. Basic class declaration and instantiation
+// ============================================================
+
+class Person {}
+class Box {}
+class Empty {}
+
+var person = Person();
+var box = Box();
+var empty = Empty();
+
+print person;
+print box;
+print empty;
+
+
+// ============================================================
+// 2. Basic property set/get
+// ============================================================
+
+person.name = "Alice";
+person.age = 30;
+person.active = true;
+
+print person.name;
+print person.age;
+print person.active;
+
+
+// ============================================================
+// 3. Overwrite existing properties
+// ============================================================
+
+person.name = "Bob";
+person.age = 40;
+person.active = false;
+
+print person.name;
+print person.age;
+print person.active;
+
+
+// ============================================================
+// 4. Many independent properties
+// ============================================================
+
+person.a = 1;
+person.b = 2;
+person.c = 3;
+person.d = 4;
+person.e = 5;
+person.f = 6;
+person.g = 7;
+person.h = 8;
+person.i = 9;
+person.j = 10;
+
+print person.a;
+print person.b;
+print person.c;
+print person.d;
+print person.e;
+print person.f;
+print person.g;
+print person.h;
+print person.i;
+print person.j;
+
+
+// ============================================================
+// 5. Different instances have independent properties
+// ============================================================
+
+var alice = Person();
+var bob = Person();
+
+alice.name = "Alice";
+alice.age = 30;
+
+bob.name = "Bob";
+bob.age = 40;
+
+print alice.name;
+print alice.age;
+
+print bob.name;
+print bob.age;
+
+
+// Change Bob.
+
+bob.name = "Robert";
+bob.age = 41;
+
+print alice.name;
+print alice.age;
+
+print bob.name;
+print bob.age;
+
+
+// ============================================================
+// 6. Global variables vs properties
+// ============================================================
+
+var name = "global";
+var age = 100;
+var value = 500;
+
+person.name = "property";
+person.age = 20;
+person.value = 10;
+
+print name;
+print age;
+print value;
+
+print person.name;
+print person.age;
+print person.value;
+
+
+// ============================================================
+// 7. Local variables vs properties
+// ============================================================
+
+{
+    var name = "local";
+    var age = 50;
+    var value = 20;
+
+    print name;
+    print age;
+    print value;
+
+    print person.name;
+    print person.age;
+    print person.value;
+
+    person.name = name;
+    person.age = age;
+    person.value = value;
+
+    print person.name;
+    print person.age;
+    print person.value;
+}
+
+print name;
+print age;
+print value;
+
+print person.name;
+print person.age;
+print person.value;
+
+
+// ============================================================
+// 8. Nested scope shadowing
+// ============================================================
+
+var x = "global";
+
+{
+    var x = "outer";
+
+    print x;
+
+    {
+        var x = "inner";
+
+        print x;
+
+        person.x = x;
+
+        print person.x;
+    }
+
+    print x;
+    print person.x;
+}
+
+print x;
+print person.x;
+
+
+// ============================================================
+// 9. Property names can match local variables
+// ============================================================
+
+var data = "global data";
+
+person.data = "property data";
+
+{
+    var data = "outer data";
+
+    print data;
+    print person.data;
+
+    {
+        var data = "inner data";
+
+        print data;
+        print person.data;
+
+        person.data = data;
+
+        print person.data;
+    }
+
+    print data;
+    print person.data;
+}
+
+print data;
+print person.data;
+
+
+// ============================================================
+// 10. Property assignment from variables
+// ============================================================
+
+var first = "one";
+var second = "two";
+var number = 123;
+
+person.first = first;
+person.second = second;
+person.number = number;
+
+print person.first;
+print person.second;
+print person.number;
+
+
+// ============================================================
+// 11. Property assignment from expressions
+// ============================================================
+
+person.sum = 10 + 20;
+person.product = 10 * 20;
+person.difference = 50 - 10;
+person.quotient = 100 / 4;
+
+print person.sum;
+print person.product;
+print person.difference;
+print person.quotient;
+
+
+// ============================================================
+// 12. Property-to-property assignment
+// ============================================================
+
+person.a = 100;
+person.b = person.a;
+
+print person.a;
+print person.b;
+
+person.c = person.a + person.b;
+
+print person.c;
+
+
+// ============================================================
+// 13. Assignment expression result
+// ============================================================
+
+var result;
+
+result = (person.answer = 42);
+
+print result;
+print person.answer;
+
+
+// ============================================================
+// 14. Chained assignment
+// ============================================================
+
+var chain;
+
+chain = (person.a = person.b = person.c = 123);
+
+print chain;
+print person.a;
+print person.b;
+print person.c;
+
+
+// ============================================================
+// 15. More chained assignment
+// ============================================================
+
+person.x = person.y = person.z = 999;
+
+print person.x;
+print person.y;
+print person.z;
+
+
+// ============================================================
+// 16. Assignment expression inside arithmetic
+// ============================================================
+
+var arithmetic;
+
+arithmetic = (person.number = 10) + 20;
+
+print arithmetic;
+print person.number;
+
+
+// ============================================================
+// 17. Assignment expression inside comparison
+// ============================================================
+
+var comparison;
+
+comparison = ((person.number = 50) == 50);
+
+print comparison;
+print person.number;
+
+
+// ============================================================
+// 18. Assignment expression inside print
+// ============================================================
+
+print (person.printed = 12345);
+print person.printed;
+
+
+// ============================================================
+// 19. Nil property
+// ============================================================
+
+person.nilValue = nil;
+
+print person.nilValue;
+
+person.nilValue = 123;
+
+print person.nilValue;
+
+person.nilValue = nil;
+
+print person.nilValue;
+
+
+// ============================================================
+// 20. Boolean properties
+// ============================================================
+
+person.yes = true;
+person.no = false;
+
+print person.yes;
+print person.no;
+
+person.yes = false;
+person.no = true;
+
+print person.yes;
+print person.no;
+
+
+// ============================================================
+// 21. String properties
+// ============================================================
+
+person.firstName = "Alice";
+person.lastName = "Smith";
+
+print person.firstName;
+print person.lastName;
+
+person.fullName = person.firstName + " " + person.lastName;
+
+print person.fullName;
+
+
+// ============================================================
+// 22. Numeric property operations
+// ============================================================
+
+person.number = 10;
+
+print person.number + 5;
+print person.number - 5;
+print person.number * 5;
+print person.number / 5;
+
+person.number = person.number + 10;
+
+print person.number;
+
+person.number = person.number * 2;
+
+print person.number;
+
+person.number = person.number - 5;
+
+print person.number;
+
+person.number = person.number / 3;
+
+print person.number;
+
+
+// ============================================================
+// 23. Property mutation in while loop
+// ============================================================
+
+var counter = Person();
+
+counter.value = 0;
+
+while (counter.value < 5) {
+    counter.value = counter.value + 1;
+}
+
+print counter.value;
+
+
+// ============================================================
+// 24. Multiple properties in loop
+// ============================================================
+
+counter.x = 0;
+counter.y = 0;
+
+while (counter.x < 10) {
+    counter.x = counter.x + 1;
+    counter.y = counter.y + 2;
+}
+
+print counter.x;
+print counter.y;
+
+
+// ============================================================
+// 25. Property used in condition
+// ============================================================
+
+person.age = 30;
+
+if (person.age == 30) {
+    print "age is 30";
+}
+
+if (person.age != 40) {
+    print "age is not 40";
+}
+
+if (person.age > 20) {
+    print "age greater than 20";
+}
+
+if (person.age < 40) {
+    print "age less than 40";
+}
+
+
+// ============================================================
+// 26. Property boolean condition
+// ============================================================
+
+person.active = true;
+
+if (person.active) {
+    print "active";
+}
+
+person.active = false;
+
+if (!person.active) {
+    print "inactive";
+}
+
+
+// ============================================================
+// 27. Property logical expressions
+// ============================================================
+
+person.a = true;
+person.b = false;
+
+print person.a and person.b;
+print person.a or person.b;
+
+person.a = false;
+person.b = true;
+
+print person.a and person.b;
+print person.a or person.b;
+
+
+// ============================================================
+// 28. Nested blocks modifying same instance
+// ============================================================
+
+person.counter = 0;
+
+{
+    person.counter = person.counter + 1;
+
+    {
+        person.counter = person.counter + 1;
+
+        {
+            person.counter = person.counter + 1;
+
+            print person.counter;
+        }
+
+        print person.counter;
+    }
+
+    print person.counter;
+}
+
+print person.counter;
+
+
+// ============================================================
+// 29. Local variables used to modify properties
+// ============================================================
+
+{
+    var amount = 10;
+
+    person.total = amount;
+
+    {
+        var amount = 20;
+
+        person.total = person.total + amount;
+
+        {
+            var amount = 30;
+
+            person.total = person.total + amount;
+        }
+    }
+}
+
+print person.total;
+
+
+// ============================================================
+// 30. Property survives local scope
+// ============================================================
+
+{
+    var localObject = Person();
+
+    localObject.name = "Scoped";
+    localObject.value = 123;
+
+    person.saved = localObject;
+
+    print localObject.name;
+    print localObject.value;
+}
+
+print person.saved.name;
+print person.saved.value;
+
+
+// ============================================================
+// 31. Object stored in property
+// ============================================================
+
+var address = Box();
+
+address.city = "Madrid";
+address.country = "Spain";
+address.zip = 28001;
+
+person.address = address;
+
+print person.address;
+print person.address.city;
+print person.address.country;
+print person.address.zip;
+
+
+// ============================================================
+// 32. Nested property get
+// ============================================================
+
+print person.address.city;
+print person.address.country;
+print person.address.zip;
+
+
+// ============================================================
+// 33. Nested property set
+// ============================================================
+
+person.address.city = "Barcelona";
+person.address.country = "Spain";
+person.address.zip = 8001;
+
+print person.address.city;
+print person.address.country;
+print person.address.zip;
+
+
+// ============================================================
+// 34. Shared object between instances
+// ============================================================
+
+alice.address = address;
+bob.address = address;
+
+print alice.address.city;
+print bob.address.city;
+
+alice.address.city = "Valencia";
+
+print alice.address.city;
+print bob.address.city;
+
+
+// ============================================================
+// 35. Replace nested object
+// ============================================================
+
+var secondAddress = Box();
+
+secondAddress.city = "Paris";
+secondAddress.country = "France";
+secondAddress.zip = 75001;
+
+alice.address = secondAddress;
+
+print alice.address.city;
+print alice.address.country;
+print alice.address.zip;
+
+print bob.address.city;
+print bob.address.country;
+print bob.address.zip;
+
+
+// ============================================================
+// 36. Different object types as properties
+// ============================================================
+
+var object1 = Person();
+var object2 = Box();
+
+object1.name = "Person object";
+object2.name = "Box object";
+
+person.personObject = object1;
+person.boxObject = object2;
+
+print person.personObject.name;
+print person.boxObject.name;
+
+
+// ============================================================
+// 37. Deep nested properties
+// ============================================================
+
+object1.address = object2;
+
+object2.city = "London";
+object2.country = "UK";
+
+person.deep = object1;
+
+print person.deep.name;
+print person.deep.address.name;
+print person.deep.address.city;
+print person.deep.address.country;
+
+
+// ============================================================
+// 38. Modify deep nested properties
+// ============================================================
+
+person.deep.address.city = "Manchester";
+
+print person.deep.address.city;
+print object2.city;
+
+
+// ============================================================
+// 39. Local object reference
+// ============================================================
+
+{
+    var temp = Person();
+
+    temp.name = "Temporary";
+    temp.value = 999;
+
+    person.temp = temp;
+
+    print temp.name;
+    print person.temp.name;
+}
+
+print person.temp.name;
+print person.temp.value;
+
+
+// ============================================================
+// 40. Same property name across instances
+// ============================================================
+
+var one = Person();
+var two = Person();
+var three = Person();
+
+one.value = 1;
+two.value = 2;
+three.value = 3;
+
+print one.value;
+print two.value;
+print three.value;
+
+one.value = 100;
+
+print one.value;
+print two.value;
+print three.value;
+
+two.value = 200;
+
+print one.value;
+print two.value;
+print three.value;
+
+three.value = 300;
+
+print one.value;
+print two.value;
+print three.value;
+
+
+// ============================================================
+// 41. Properties added after creation
+// ============================================================
+
+var dynamic = Person();
+
+dynamic.first = 1;
+
+print dynamic.first;
+
+dynamic.second = 2;
+
+print dynamic.first;
+print dynamic.second;
+
+dynamic.third = 3;
+
+print dynamic.first;
+print dynamic.second;
+print dynamic.third;
+
+
+// ============================================================
+// 42. Replace property type
+// ============================================================
+
+dynamic.value = 123;
+print dynamic.value;
+
+dynamic.value = "hello";
+print dynamic.value;
+
+dynamic.value = true;
+print dynamic.value;
+
+dynamic.value = nil;
+print dynamic.value;
+
+dynamic.value = Box();
+dynamic.value.name = "box";
+
+print dynamic.value.name;
+
+
+// ============================================================
+// 43. Property name same as class name
+// ============================================================
+
+person.Person = "property";
+
+print person.Person;
+print Person;
+
+
+// ============================================================
+// 44. Property name same as global variable
+// ============================================================
+
+var BoxValue = "global";
+
+person.BoxValue = "property";
+
+print BoxValue;
+print person.BoxValue;
+
+{
+    var BoxValue = "local";
+
+    print BoxValue;
+    print person.BoxValue;
+}
+
+
+// ============================================================
+// 45. Property assignment does not modify variable
+// ============================================================
+
+var score = 10;
+
+person.score = 100;
+
+print score;
+print person.score;
+
+person.score = 200;
+
+print score;
+print person.score;
+
+
+// ============================================================
+// 46. Variable assignment does not modify property
+// ============================================================
+
+score = 500;
+
+print score;
+print person.score;
+
+
+// ============================================================
+// 47. Nested scope + property shadowing
+// ============================================================
+
+var shadow = "global";
+
+person.shadow = "property";
+
+{
+    var shadow = "outer";
+
+    print shadow;
+    print person.shadow;
+
+    {
+        var shadow = "inner";
+
+        print shadow;
+        print person.shadow;
+
+        person.shadow = shadow;
+
+        print shadow;
+        print person.shadow;
+    }
+
+    print shadow;
+    print person.shadow;
+}
+
+print shadow;
+print person.shadow;
+
+
+// ============================================================
+// 48. Object property assigned from nested scope
+// ============================================================
+
+{
+    var firstValue = 10;
+
+    {
+        var secondValue = 20;
+
+        {
+            var thirdValue = 30;
+
+            person.sum =
+                firstValue +
+                secondValue +
+                thirdValue;
+        }
+    }
+}
+
+print person.sum;
+
+
+// ============================================================
+// 49. Multiple instances inside scopes
+// ============================================================
+
+var outerPerson = Person();
+
+outerPerson.value = 1;
+
+{
+    var outerPerson = Person();
+
+    outerPerson.value = 2;
+
+    print outerPerson.value;
+
+    {
+        var outerPerson = Person();
+
+        outerPerson.value = 3;
+
+        print outerPerson.value;
+    }
+
+    print outerPerson.value;
+}
+
+print outerPerson.value;
+
+
+// ============================================================
+// 50. Object reference assignment
+// ============================================================
+
+var original = Person();
+
+original.name = "Original";
+original.value = 10;
+
+var reference = original;
+
+print original.name;
+print reference.name;
+
+reference.name = "Changed";
+reference.value = 20;
+
+print original.name;
+print original.value;
+
+print reference.name;
+print reference.value;
+
+
+// ============================================================
+// 51. Multiple references to same object
+// ============================================================
+
+var ref1 = original;
+var ref2 = original;
+var ref3 = original;
+
+ref1.value = 100;
+
+print ref1.value;
+print ref2.value;
+print ref3.value;
+print original.value;
+
+ref2.value = 200;
+
+print ref1.value;
+print ref2.value;
+print ref3.value;
+print original.value;
+
+
+// ============================================================
+// 52. Object replacement
+// ============================================================
+
+var replacement = Person();
+
+replacement.name = "Replacement";
+replacement.value = 999;
+
+reference = replacement;
+
+print reference.name;
+print reference.value;
+
+print original.name;
+print original.value;
+
+
+// ============================================================
+// 53. Property value replacement
+// ============================================================
+
+person.object = original;
+
+print person.object.name;
+
+person.object = replacement;
+
+print person.object.name;
+
+person.object = nil;
+
+print person.object;
+
+
+// ============================================================
+// 54. Property expression with nested property
+// ============================================================
+
+original.value = 10;
+replacement.value = 20;
+
+person.result =
+    person.object == nil;
+
+print person.result;
+
+person.object = original;
+
+person.result =
+    person.object.value + replacement.value;
+
+print person.result;
+
+
+// ============================================================
+// 55. Assignment chains involving different objects
+// ============================================================
+
+original.value = replacement.value = 777;
+
+print original.value;
+print replacement.value;
+
+
+// ============================================================
+// 56. Nested assignment chains
+// ============================================================
+
+person.one = person.two = person.three = 42;
+
+print person.one;
+print person.two;
+print person.three;
+
+
+// ============================================================
+// 57. Property mutation with loop and local variable
+// ============================================================
+
+var accumulator = Person();
+
+accumulator.value = 0;
+
+{
+    var increment = 3;
+
+    while (accumulator.value < 15) {
+        accumulator.value =
+            accumulator.value + increment;
+    }
+}
+
+print accumulator.value;
+
+
+// ============================================================
+// 58. Multiple object fields in loop
+// ============================================================
+
+var stats = Person();
+
+stats.a = 0;
+stats.b = 0;
+stats.c = 0;
+
+while (stats.a < 5) {
+    stats.a = stats.a + 1;
+    stats.b = stats.b + 2;
+    stats.c = stats.a + stats.b;
+}
+
+print stats.a;
+print stats.b;
+print stats.c;
+
+
+// ============================================================
+// 59. Property used as while condition
+// ============================================================
+
+var loopObject = Person();
+
+loopObject.done = false;
+loopObject.count = 0;
+
+while (!loopObject.done) {
+    loopObject.count = loopObject.count + 1;
+
+    if (loopObject.count == 3) {
+        loopObject.done = true;
+    }
+}
+
+print loopObject.count;
+print loopObject.done;
+
+
+// ============================================================
+// 60. Empty instance
+// ============================================================
+
+var blank = Empty();
+
+blank.x = 1;
+blank.y = 2;
+
+print blank.x;
+print blank.y;
+
+
+// ============================================================
+// 61. Lots of instances
+// ============================================================
+
+var p1 = Person();
+var p2 = Person();
+var p3 = Person();
+var p4 = Person();
+var p5 = Person();
+
+p1.id = 1;
+p2.id = 2;
+p3.id = 3;
+p4.id = 4;
+p5.id = 5;
+
+print p1.id;
+print p2.id;
+print p3.id;
+print p4.id;
+print p5.id;
+
+
+// ============================================================
+// 62. Property values referencing other instances
+// ============================================================
+
+p1.next = p2;
+p2.next = p3;
+p3.next = p4;
+p4.next = p5;
+
+print p1.next.id;
+print p2.next.id;
+print p3.next.id;
+print p4.next.id;
+
+print p1.next.next.id;
+print p1.next.next.next.id;
+print p1.next.next.next.next.id;
+
+
+// ============================================================
+// 63. Modify through object chain
+// ============================================================
+
+p1.next.id = 20;
+p1.next.next.id = 30;
+p1.next.next.next.id = 40;
+p1.next.next.next.next.id = 50;
+
+print p1.id;
+print p2.id;
+print p3.id;
+print p4.id;
+print p5.id;
+
+
+// ============================================================
+// 64. Property set from deeply nested property
+// ============================================================
+
+p1.result = p1.next.next.next.next.id;
+
+print p1.result;
+
+
+// ============================================================
+// 65. Scope + object chain
+// ============================================================
+
+{
+    var current = p1;
+
+    print current.id;
+
+    current = current.next;
+
+    print current.id;
+
+    current = current.next;
+
+    print current.id;
+
+    current = current.next;
+
+    print current.id;
+
+    current = current.next;
+
+    print current.id;
+}
+
+
+// ============================================================
+// 66. Property values of every supported primitive
+// ============================================================
+
+var types = Person();
+
+types.nilValue = nil;
+types.boolValue = true;
+types.numberValue = 123.456;
+types.stringValue = "string";
+
+print types.nilValue;
+print types.boolValue;
+print types.numberValue;
+print types.stringValue;
+
+
+// ============================================================
+// 67. Replace primitive values repeatedly
+// ============================================================
+
+types.value = 1;
+print types.value;
+
+types.value = 2;
+print types.value;
+
+types.value = 3;
+print types.value;
+
+types.value = "four";
+print types.value;
+
+types.value = true;
+print types.value;
+
+types.value = nil;
+print types.value;
+
+
+// ============================================================
+// 68. Property access after many unrelated operations
+// ============================================================
+
+person.finalA = 10;
+person.finalB = 20;
+person.finalC = 30;
+
+var finalLocal = 40;
+
+{
+    var finalLocal = 50;
+
+    person.finalA = finalLocal;
+    person.finalB = person.finalA + finalLocal;
+    person.finalC = person.finalB + person.finalA;
+}
+
+print finalLocal;
+print person.finalA;
+print person.finalB;
+print person.finalC;
+
+
+// ============================================================
+// 69. Final object graph
+// ============================================================
+
+var root = Person();
+var child = Person();
+var childBox = Box();
+
+root.name = "root";
+root.value = 1;
+
+child.name = "child";
+child.value = 2;
+
+childBox.name = "child box";
+childBox.value = 3;
+
+child.box = childBox;
+root.child = child;
+
+print root.name;
+print root.value;
+
+print root.child.name;
+print root.child.value;
+
+print root.child.box.name;
+print root.child.box.value;
+
+
+// ============================================================
+// 70. Final mutation through graph
+// ============================================================
+
+root.child.value = 200;
+root.child.box.value = 300;
+
+print root.child.value;
+print root.child.box.value;
+
+print child.value;
+print childBox.value;
+
+
+// ============================================================
+// FINAL ASSERTION-LIKE OUTPUT
+// ============================================================
+
+print "=== FINAL ===";
+
+print person.name;
+print person.age;
+print person.value;
+print person.counter;
+print person.sum;
+
+print person.address.city;
+print person.address.zip;
+
+print original.value;
+print replacement.value;
+
+print p1.id;
+print p2.id;
+print p3.id;
+print p4.id;
+print p5.id;
+
+print root.name;
+print root.child.name;
+print root.child.box.name;
