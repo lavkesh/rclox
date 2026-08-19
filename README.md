@@ -98,7 +98,9 @@ Object
   │    ├─ Native(NativeFunction)
   │    ├─ Array(Vec<Value>)
   │    ├─ Closure(ClosureObject)   // runtime wrapper around Function; holds upvalue slots
-  │    └─ UpValue(UpValueObject)   // open: location → stack slot; closed: location → self.closed
+  │    ├─ UpValue(UpValueObject)   // open: location → stack slot; closed: location → self.closed
+  │    ├─ Class(ClassObject)       // { name }
+  │    └─ Instance(InstanceObject) // { class: *mut Object, fields: HashMap<String, Value> }
   ├─ is_marked: bool            // tri-color mark-and-sweep GC
   └─ next: *mut Object          // intrusive linked list through the Heap
 ```
@@ -157,7 +159,8 @@ CallFrame {
 2. `OpCall arg_count` resolves the value at `stack[len - arg_count - 1]`.
 3. For `ObjectType::Closure`: push a new `CallFrame` with `stack_base = stack.len() - arg_count - 1`. The function's locals live in-place on the stack starting at `stack_base`.
 4. For `ObjectType::Native`: slice args directly off the stack, call the function pointer, truncate stack, push result — no `CallFrame` needed.
-5. `OpReturn`: close all upvalues pointing into this frame (`close_upvalues(stack[stack_base])`), pop `CallFrame`, truncate stack to `frame.stack_base`, push return value. If call stack is empty, program ends.
+5. For `ObjectType::Class`: heap-allocate an `InstanceObject`, truncate stack, push the instance — no `CallFrame`, no initializer run yet.
+6. `OpReturn`: close all upvalues pointing into this frame (`close_upvalues(stack[stack_base])`), pop `CallFrame`, truncate stack to `frame.stack_base`, push return value. If call stack is empty, program ends.
 
 **Closures and upvalues** — every function is wrapped in a `ClosureObject` at runtime. Captured variables become `UpValueObject`s. Open upvalues hold a raw pointer into the stack; on scope exit (`OpCloseUpvalue`) or frame return, they are closed — the value is copied into `UpValueObject::closed` and `location` is redirected to point there. Deduplication in `capture_upvalue` ensures two closures capturing the same local share one upvalue object. Supports arbitrarily deep capture chains (inner → middle → outer). `Vm::open_upvalues` tracks all live open upvalues for GC root marking.
 
@@ -195,6 +198,9 @@ CallFrame {
 | `OpGetIndex` | — | pop index + array, push element |
 | `OpSetIndex` | — | pop value + index + array, mutate, push value |
 | `OpLen` | — | pop array, push length as number |
+| `OpClass` | `u8` name-constant | heap-allocate `ClassObject`, push |
+| `OpGetProperty` | `u8` name-constant | pop instance, push `fields[name]` |
+| `OpSetProperty` | `u8` name-constant | pop value + instance, set `fields[name] = value`, push value |
 
 ---
 
@@ -214,7 +220,6 @@ CallFrame {
 
 ## TODO (book chapters remaining)
 
-- [ ] **Classes and instances** — `ObjClass`, `ObjInstance`, `OpGetProperty`/`OpSetProperty` with field hash map (ch. 27)
 - [ ] **Methods and `this`** — `ObjBoundMethod`, `OpInvoke` fast path, implicit `this` as slot 0 (ch. 28)
 - [ ] **Inheritance** — `<` syntax, `ObjClass::superclass`, `OpGetSuper`/`OpInvokeSuper`, `super` keyword (ch. 29)
 
@@ -313,6 +318,16 @@ var a = [5, 3, 1, 4, 2];
 reverse(a);
 print a;              // [2, 4, 1, 3, 5]
 print indexOf(a, 3);  // 2
+```
+
+**Classes (fields only, no methods yet)**
+```lox
+class Point {}
+
+var p = Point();
+p.x = 1;
+p.y = 2;
+print p.x + p.y;  // 3
 ```
 
 **Native functions**
